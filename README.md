@@ -23,10 +23,10 @@ import { reverseGeocode } from 'vt-reverse-geocode'
 
 ```typescript
 {
-	/** Vector tile fetch url */
-	vectorTileUrl?: string;
-	/** max zooming to search tile */
-	maxZoom?: number;
+  /** Vector tile fetch url */
+  vectorTileUrl?: string;
+  /** max zooming to search tile */
+  maxZoom?: number;
   /** Transform tiles and source requests */
   transformRequest?: (url: string, init?: RequestInit | undefined) => [string, RequestInit | undefined]
 }
