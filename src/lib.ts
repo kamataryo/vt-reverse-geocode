@@ -2,6 +2,7 @@ import _fetch, { RequestInit } from 'node-fetch'
 import { VectorTile } from '@mapbox/vector-tile'
 import Pbf from 'pbf';
 import booleanPointInPolygon from '@turf/boolean-point-in-polygon'
+import distance from '@turf/distance'
 
 /**
  * Point type
@@ -17,10 +18,16 @@ export type Config = {
 	/** max zooming to search tile */
 	maxZoom: number;
   /** Transform tiles and source requests */
-  transformRequest: (url: string, init?: RequestInit | undefined) => [string, RequestInit | undefined]
+  transformRequest: (url: string, init?: RequestInit | undefined) => [string, RequestInit | undefined],
 }
 
 export type ZXY = [z: number, x: number, y: number]
+
+export type ReverseGeocodeData = {
+  type: 'contain' | 'neighborhood',
+  distance: number,
+  properties: { [key: string]: any },
+}
 
 export type ReverseGeocodeResult = {
   query: {
@@ -28,7 +35,7 @@ export type ReverseGeocodeResult = {
     vectorTileUrl: string;
     zxy: ZXY | null;
   };
-  data: any[];
+  data: ReverseGeocodeData[];
 }
 
 export const defaultConfig: Config = {
@@ -108,13 +115,20 @@ export const reverseGeocode = async (latlng: LatLng, config: Partial<Config> = d
         const [z, x, y] = zxy
         const feature = layer.feature(index).toGeoJSON(x, y, z)
         if(feature.geometry.type === 'Polygon' || feature.geometry.type === 'MultiPolygon') {
+          const { properties } = feature.properties || {}
           if(booleanPointInPolygon([lng, lat], feature.geometry)) {
-            result.data.push(feature.properties)
+            result.data.push({ type: 'contain', distance: 0, properties })
+          } else {
+            const coords = feature.geometry.type === 'Polygon' ?
+              feature.geometry.coordinates.flat() :
+              feature.geometry.coordinates.flat().flat()
+            const nearest = Math.min(...coords.map(coord => distance([lng, lat], coord, { units: 'meters' })))
+            result.data.push({ type: 'neighborhood', distance: nearest, properties })
           }
         }
       }
     }
-
   }
+  result.data.sort((a, b) => a.distance - b.distance)
   return result
 }
